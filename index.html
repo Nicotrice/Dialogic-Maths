@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Mastery Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="questions.js"></script>
+    <style>
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --gold: #ffc107; --bg: #f0f2f5; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 15px; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 500px; }
+        .box { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; width: 100%; }
+        #loginBox { text-align: center; margin-top: 5vh; }
+        .name-input { width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 1.1rem; margin-bottom: 15px; outline: none; }
+        .motd-box { background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; font-size: 0.9rem; text-align: center; }
+        .q-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+        .q-id { display: block; font-size: 0.6rem; color: #bbb; margin-top: 2px; text-transform: uppercase; font-family: monospace; }
+        .timer { font-size: 2.5rem; font-weight: 800; text-align: center; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .target-label { text-align: center; font-size: 0.85rem; color: #666; margin-bottom: 5px; }
+        input.user-in { width: 85px; padding: 10px; border: 2px solid #ddd; border-radius: 8px; text-align: center; font-size: 1rem; }
+        input.user-in:disabled { background: #f8f9fa; border-color: var(--success); color: #333; opacity: 1; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; transition: transform 0.1s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-gray { background: #6c757d; color: white; margin-top: 10px; }
+        .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); margin-top: 20px; font-size: 0.8rem; padding: 8px; }
+        table { width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+        .version-tag { font-size: 0.7rem; color: #999; text-align: center; margin-top: 10px; width: 100%; }
+        @media (max-width: 450px) { .q-row { flex-direction: column; align-items: flex-start; } input.user-in { width: 100%; margin-top: 10px; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginBox" class="box">
+        <h2>Math Portal 👋</h2>
+        <div id="motd" class="motd-box" style="display:none;"></div>
+        <input type="text" id="userName" class="name-input" placeholder="Enter student name..." autofocus>
+        <label style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px; font-size: 0.9rem; color: #666; cursor: pointer;">
+            <input type="checkbox" id="rememberMe"> Remember me on this device
+        </label>
+        <button class="btn-primary" onclick="login()">Enter Portal</button>
+    </div>
+
+    <div id="mainUI" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <span style="font-weight: bold; color: #555;">Student: <span id="displayStudentName" style="color: var(--primary);"></span></span>
+            <button onclick="logout()" style="width: auto; padding: 6px 12px; font-size: 0.75rem; background: #eee; color: #666;">Switch User</button>
+        </div>
+
+        <div class="box">
+            <h3 style="margin-top:0">Select Level</h3>
+            <select id="levelSelect" style="width:100%; padding:12px; border-radius:8px; margin-bottom:15px;"></select>
+            <button class="btn-primary" onclick="initQuiz()">Start Challenge</button>
+        </div>
+
+        <div id="quizContainer" class="box" style="display:none;">
+            <div class="target-label">Target for 🏆: <span id="targetDisplay">--</span>s</div>
+            <div class="timer" id="timer">0.00s</div>
+            <div id="questionsList"></div>
+            <div id="feedbackArea" style="text-align:center; padding:15px; font-weight:bold;"></div>
+            <button id="submitBtn" class="btn-primary" onclick="processResults()">Check Answers</button>
+            <button id="retryBtn" class="btn-gray" style="display:none;" onclick="resumeForRetry()">Fix Errors 🔧</button>
+            <button id="nextSetBtn" class="btn-success" style="display:none;" onclick="location.reload()">Save & Finish</button>
+        </div>
+
+        <div class="box">
+            <h4 style="margin-top:0">Focus Areas (Struggle List)</h4>
+            <div id="struggleTableArea"></div>
+        </div>
+
+        <div class="box">
+            <h4 style="margin-top:0">Recent Best Scores</h4>
+            <div id="historyLog"></div>
+            <button class="btn-danger-outline" onclick="clearAllHistory()">Reset All Progress</button>
+        </div>
+        <div class="version-tag" id="versionDisplay">DB Version: Loading...</div>
+    </div>
+</div>
+
+<script>
+const NTFY_TOPIC = "nicotrice_linux_alert99";
+let startTime, timerInt, currentAnswers = [], currentUser = "", currentLevelTarget = 60, isRetry = false, sessionIDs = [];
+
+window.onload = function() {
+    if (MATH_DATABASE.motd) {
+        const motd = document.getElementById('motd');
+        motd.innerText = "📢 " + MATH_DATABASE.motd;
+        motd.style.display = 'block';
+    }
+    const saved = localStorage.getItem('saved_student_name');
+    if (saved) {
+        document.getElementById('userName').value = saved;
+        document.getElementById('rememberMe').checked = true;
+    }
+};
+
+function login() {
+    const name = document.getElementById('userName').value.trim();
+    if (name) {
+        currentUser = name;
+        document.getElementById('displayStudentName').innerText = name;
+        if (document.getElementById('rememberMe').checked) localStorage.setItem('saved_student_name', name);
+        else localStorage.removeItem('saved_student_name');
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('mainUI').style.display = 'block';
+        document.getElementById('versionDisplay').innerText = "DB Version: " + (MATH_DATABASE.version || "1.0.0");
+        updateLevelDropdown();
+        renderLog();
+        renderStruggleTable();
+    }
+}
+
+function logout() {
+    document.getElementById('mainUI').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+    currentUser = "";
+}
+
+function updateLevelDropdown() {
+    const select = document.getElementById('levelSelect');
+    select.innerHTML = '';
+    const logs = JSON.parse(localStorage.getItem('math_logs') || '[]');
+    for(let i=1; i<=10; i++) {
+        const prevLvl = i - 1;
+        const perfects = logs.filter(l => l.user === currentUser && l.level == prevLvl && l.score === "20/20").length;
+        const isLocked = i > 1 && perfects < 3;
+        const opt = document.createElement('option');
+        opt.value = i; opt.disabled = isLocked;
+        opt.innerText = `Level ${i} ${isLocked ? '🔒' : '🔓'}`;
+        select.appendChild(opt);
+    }
+}
+
+function generateDataByConfig(config) {
+    let v = {}, valid = false, attempts = 0;
+    while (!valid && attempts < 100) {
+        attempts++;
+        v = {};
+        for (let name in config.vars) {
+            let r = config.vars[name];
+            v[name] = Math.floor(Math.random() * (r.max - r.min + 1)) + r.min;
+        }
+        if (config.generateC) {
+            v['c'] = new Function('a', 'x', 'b', 'd', `return ${config.generateC}`)(v.a, v.x, v.b, v.d);
+        }
+        if (config.logic) {
+            try {
+                valid = new Function('a', 'b', 'c', 'x', 'c_var', 'd', `return ${config.logic}`)(v.a, v.b, v.c, v.x, v.c_var, v.d);
+            } catch (e) { valid = true; }
+        } else { valid = true; }
+    }
+
+    let display = config.template;
+    for (let name in v) display = display.replace(`{{${name}}}`, v[name]);
+    const ans = new Function('a', 'b', 'c', 'x', 'c_var', 'd', `return ${config.answer}`)(v.a, v.b, v.c, v.x, v.c_var, v.d);
+    return { display, finalAnswer: ans };
+}
+
+function initQuiz() {
+    isRetry = false;
+    sessionIDs = [];
+    const level = document.getElementById('levelSelect').value;
+    if (!MATH_DATABASE[level]) return;
+
+    currentLevelTarget = MATH_DATABASE[level].targetTime || 120;
+    document.getElementById('targetDisplay').innerText = currentLevelTarget;
+    const list = document.getElementById('questionsList');
+    list.innerHTML = ''; currentAnswers = [];
+    document.getElementById('quizContainer').style.display = 'block';
+    
+    for(let i=0; i<20; i++) {
+        const pool = MATH_DATABASE[level].questions;
+        const config = pool[Math.floor(Math.random() * pool.length)];
+        const q = generateDataByConfig(config);
+        currentAnswers.push(q.finalAnswer);
+        sessionIDs.push(config.id);
+        list.innerHTML += `<div class="q-row"><div><span>\\(${i+1}) \\, ${q.display}\\)</span><span class="q-id">ID: ${config.id}</span></div><div style="display:flex; align-items:center; gap:10px;"><span id="status-${i}"></span><input type="number" class="user-in" id="input-${i}" inputmode="numeric"></div></div>`;
+    }
+    if (window.MathJax) MathJax.typesetPromise();
+    startTimer();
+}
+
+function startTimer() {
+    startTime = Date.now();
+    timerInt = setInterval(() => {
+        const elapsed = (Date.now() - startTime)/1000;
+        document.getElementById('timer').innerText = elapsed.toFixed(2) + "s";
+        document.getElementById('timer').style.color = elapsed > currentLevelTarget ? 'var(--danger)' : 'var(--primary)';
+    }, 100);
+}
+
+function resumeForRetry() {
+    document.getElementById('retryBtn').style.display = 'none';
+    document.getElementById('submitBtn').style.display = 'block';
+    const current = parseFloat(document.getElementById('timer').innerText);
+    startTime = Date.now() - (current * 1000);
+    timerInt = setInterval(() => { document.getElementById('timer').innerText = ((Date.now() - startTime)/1000).toFixed(2) + "s"; }, 100);
+}
+
+function processResults() {
+    clearInterval(timerInt);
+    let correct = 0;
+    let missedThisTime = [];
+    document.querySelectorAll('.user-in').forEach((input, i) => {
+        if(parseFloat(input.value) === currentAnswers[i]) {
+            correct++; input.disabled = true; document.getElementById(`status-${i}`).innerText = "✅";
+        } else {
+            document.getElementById(`status-${i}`).innerText = "❌";
+            missedThisTime.push(sessionIDs[i]);
+        }
+    });
+
+    const finalTime = document.getElementById('timer').innerText;
+    const feedback = document.getElementById('feedbackArea');
+    const level = document.getElementById('levelSelect').value;
+
+    if (!isRetry && correct < 20) {
+        sendNtfy(`First Attempt: ${correct}/20`, `Lvl ${level} - Missed: ${missedThisTime.join(', ')}`);
+        trackStruggles(missedThisTime);
+    }
+
+    if(correct === 20) {
+        const isGold = parseFloat(finalTime) <= currentLevelTarget;
+        feedback.innerHTML = `<span style="color:var(--success); font-size:1.3rem;">${isGold ? '🏆 GOLD!' : '🎉 PERFECT!'}</span>`;
+        document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('nextSetBtn').style.display = 'block';
+        saveLog("20/20", finalTime);
+        sendNtfy("COMPLETED!", `Score: 20/20\nLvl: ${level}\nTime: ${finalTime} ${isGold ? '(🏆)' : ''}`);
+    } else {
+        feedback.innerHTML = `<span style="color:var(--danger)">Fix mistakes to unlock the next level!</span>`;
+        document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('retryBtn').style.display = 'block';
+        isRetry = true;
+    }
+}
+
+function trackStruggles(ids) {
+    let struggles = JSON.parse(localStorage.getItem('math_struggles') || '{}');
+    if(!struggles[currentUser]) struggles[currentUser] = {};
+    ids.forEach(id => {
+        struggles[currentUser][id] = (struggles[currentUser][id] || 0) + 1;
+    });
+    localStorage.setItem('math_struggles', JSON.stringify(struggles));
+    renderStruggleTable();
+}
+
+function renderStruggleTable() {
+    const struggles = JSON.parse(localStorage.getItem('math_struggles') || '{}')[currentUser] || {};
+    const sorted = Object.entries(struggles).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    let html = sorted.length ? "<table><tr><th>Question ID</th><th>Times Missed</th></tr>" : "Great job! No struggles recorded.";
+    sorted.forEach(([id, count]) => { html += `<tr><td>${id}</td><td>${count}</td></tr>`; });
+    if(sorted.length) html += "</table>";
+    document.getElementById('struggleTableArea').innerHTML = html;
+}
+
+function sendNtfy(title, message) {
+    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, { method: 'POST', body: message, headers: { 'Title': `${currentUser}: ${title}`, 'Tags': 'mortar_board,chart_with_upwards_trend' } }).catch(e => {});
+}
+
+function saveLog(score, time) {
+    const logs = JSON.parse(localStorage.getItem('math_logs') || '[]');
+    logs.push({ user: currentUser, date: new Date().toLocaleDateString(), level: document.getElementById('levelSelect').value, score, time });
+    localStorage.setItem('math_logs', JSON.stringify(logs));
+}
+
+function renderLog() {
+    const logs = JSON.parse(localStorage.getItem('math_logs') || '[]').reverse();
+    const filtered = logs.filter(l => l.user === currentUser).slice(0, 5);
+    document.getElementById('historyLog').innerHTML = filtered.length ? filtered.map(l => `<div style="padding:8px 0; border-bottom:1px solid #eee;">${l.date} - <b>Lvl ${l.level}</b>: ${l.score} in ${l.time}</div>`).join('') : "No history yet.";
+}
+
+function clearAllHistory() {
+    if(confirm("Wipe all scores, struggles, and lock levels?")) {
+        localStorage.removeItem('math_logs');
+        localStorage.removeItem('math_struggles');
+        location.reload();
+    }
+}
+</script>
+</body>
+</html>
+
