@@ -16,7 +16,7 @@ const MATH_LISTS = {
 };
 
 const MATH_DATABASE = {
-    version: "1.2.2",
+    version: "1.3.0",
     motd: "Level 1 optimized for mental math with new target time! Complex addition moved to Level 2. 🚀",
 
     1: {
