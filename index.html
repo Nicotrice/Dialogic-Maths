@@ -136,27 +136,33 @@ function updateLevelDropdown() {
 }
 
 function generateDataByConfig(config) {
-    let v = {}, valid = false, attempts = 0;
-    while (!valid && attempts < 100) {
-        attempts++;
-        v = {};
+    let v = {};
+    
+    // Check if the question uses a pair-based list (like subtraction_pairs)
+    if (config.generateVarsFromPair && config.vars.pair) {
+        const list = MATH_LISTS[config.vars.pair.list];
+        const selectedPair = list[Math.floor(Math.random() * list.length)];
+        v = { ...selectedPair }; // This populates v.a and v.b automatically
+    } else {
+        // Standard generation for independent variables
         for (let name in config.vars) {
             let r = config.vars[name];
-            v[name] = Math.floor(Math.random() * (r.max - r.min + 1)) + r.min;
+            if (r.list) {
+                const list = MATH_LISTS[r.list];
+                v[name] = list[Math.floor(Math.random() * list.length)];
+            } else {
+                v[name] = Math.floor(Math.random() * (r.max - r.min + 1)) + r.min;
+            }
         }
-        if (config.generateC) {
-            v['c'] = new Function('a', 'x', 'b', 'd', `return ${config.generateC}`)(v.a, v.x, v.b, v.d);
-        }
-        if (config.logic) {
-            try {
-                valid = new Function('a', 'b', 'c', 'x', 'c_var', 'd', `return ${config.logic}`)(v.a, v.b, v.c, v.x, v.c_var, v.d);
-            } catch (e) { valid = true; }
-        } else { valid = true; }
     }
 
+    // Handle derived variables and template replacement
+    if (config.generateC) v['c'] = new Function('a', 'x', 'b', `return ${config.generateC}`)(v.a, v.x, v.b);
+    
     let display = config.template;
-    for (let name in v) display = display.replace(`{{${name}}}`, v[name]);
-    const ans = new Function('a', 'b', 'c', 'x', 'c_var', 'd', `return ${config.answer}`)(v.a, v.b, v.c, v.x, v.c_var, v.d);
+    for (let name in v) display = display.replace(new RegExp(`{{${name}}}`, 'g'), v[name]);
+    
+    const ans = new Function('a', 'b', 'c', 'x', 'c_var', `return ${config.answer}`)(v.a, v.b, v.c, v.x, v.c_var);
     return { display, finalAnswer: ans };
 }
 
