@@ -17,10 +17,10 @@ const MATH_LISTS = {
 
 const MATH_DATABASE = {
     version: "1.2.2",
-    motd: "Level 1 optimized for mental math. Complex addition moved to Level 2. 🚀",
+    motd: "Level 1 optimized for mental math with new target time! Complex addition moved to Level 2. 🚀",
 
     1: {
-        targetTime: 120,
+        targetTime: 60,
         questions: [
             {
                 // Addition - Small Numbers
@@ -84,10 +84,10 @@ const MATH_DATABASE = {
     },
 
     2: {
-        targetTime: 90,
+        targetTime: 120,
         questions: [
             {
-                // Addition - Column Addition (Forced Carry - moved from Lvl 1)
+                // Addition - Column Addition (Forced Carry)
                 id: "N0102",
                 template: "{{a}} + {{b}} = ?",
                 vars: { a: { min: 21, max: 99 }, b: { min: 21, max: 99 } },
@@ -95,7 +95,7 @@ const MATH_DATABASE = {
                 answer: "a + b"
             },
             {
-                // Subtraction - Borrowing (Moved from Lvl 1)
+                // Subtraction - Borrowing
                 id: "N0201",
                 template: "{{a}} - {{b}} = ?",
                 vars: { a: { min: 21, max: 99 }, b: { min: 21, max: 99 } },
