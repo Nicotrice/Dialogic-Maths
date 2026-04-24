@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lidl Monthly Shop</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --text: #e8e8f0;
+    --muted: #7a7a9a;
+    --freezer: #38bdf8;
+    --cupboard: #4ade80;
+    --household: #c084fc;
+    --weekly: #fb923c;
+    --done-bg: #1a1a22;
+    --done-text: #3a3a4a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 16px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  header p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .progress-bar { margin-top: 12px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--freezer), var(--cupboard), var(--household), var(--weekly));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  .progress-label { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: 'DM Mono', monospace; }
+
+  .totals-strip {
+    display: flex; gap: 8px; padding: 10px 16px;
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .totals-strip::-webkit-scrollbar { display: none; }
+  .total-chip {
+    flex-shrink: 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 12px; font-size: 12px;
+    font-family: 'DM Mono', monospace; white-space: nowrap;
+  }
+  .total-chip span { color: var(--muted); margin-right: 4px; }
+
+  .section { margin: 16px 16px 0; }
+
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; background: var(--surface);
+    border-radius: 12px 12px 0 0; border: 1px solid var(--border);
+    border-bottom: none; cursor: pointer; user-select: none;
+  }
+  .section-header .icon { font-size: 18px; }
+  .section-header .title { font-size: 14px; font-weight: 700; flex: 1; letter-spacing: -0.2px; }
+  .section-header .section-total { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+  .section-header .chevron { font-size: 12px; color: var(--muted); transition: transform 0.2s; }
+  .section-header.collapsed .chevron { transform: rotate(-90deg); }
+
+  .section-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
+  .section-body.hidden { display: none; }
+
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; border-bottom: 1px solid var(--border);
+    transition: background 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .item:last-child { border-bottom: none; }
+  .item.done { background: var(--done-bg); }
+  .item.done .item-name { text-decoration: line-through; color: var(--done-text); }
+  .item.done .item-sub, .item.done .item-price { color: var(--done-text); }
+  .item.done .qty-btn, .item.done .qty-value { color: var(--done-text); border-color: var(--done-text); }
+
+  .checkbox {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; font-size: 12px; cursor: pointer;
+  }
+  .item.done .checkbox { border-color: transparent; color: #0f0f13; }
+
+  .item-info { flex: 1; min-width: 0; cursor: pointer; }
+  .item-name {
+    font-size: 14px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color 0.15s;
+  }
+  .item-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+  .item-price { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); transition: color 0.15s; }
+
+  .qty-control { display: flex; align-items: center; gap: 5px; }
+
+  .qty-btn {
+    width: 28px; height: 28px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text); font-size: 18px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent; transition: background 0.15s; flex-shrink: 0;
+  }
+  .qty-btn:active { background: var(--border); }
+
+  .qty-value {
+    font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 600;
+    min-width: 24px; text-align: center; transition: color 0.15s;
+  }
+
+  .reset-btn {
+    display: block; margin: 20px 16px 0; width: calc(100% - 32px);
+    padding: 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--muted); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .reset-btn:active { background: var(--surface2); }
+
+  .grand-total {
+    margin: 16px 16px 0; padding: 16px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .grand-total .label { font-size: 14px; font-weight: 700; }
+  .grand-total .label small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .grand-total .amount { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; }
+
+  .note {
+    margin: 12px 16px 0; padding: 12px 14px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 12px; color: var(--muted); line-height: 1.7;
+  }
+  .note strong { color: var(--text); }
+
+  [data-section="freezer"] .checkbox.checked { background: var(--freezer); border-color: var(--freezer); }
+  [data-section="freezer"] .section-header .section-total { color: var(--freezer); }
+  [data-section="freezer"] .section-header { border-top: 3px solid var(--freezer); }
+
+  [data-section="cupboard"] .checkbox.checked { background: var(--cupboard); border-color: var(--cupboard); }
+  [data-section="cupboard"] .section-header .section-total { color: var(--cupboard); }
+  [data-section="cupboard"] .section-header { border-top: 3px solid var(--cupboard); }
+
+  [data-section="household"] .checkbox.checked { background: var(--household); border-color: var(--household); }
+  [data-section="household"] .section-header .section-total { color: var(--household); }
+  [data-section="household"] .section-header { border-top: 3px solid var(--household); }
+
+  [data-section="weekly"] .checkbox.checked { background: var(--weekly); border-color: var(--weekly); }
+  [data-section="weekly"] .section-header .section-total { color: var(--weekly); }
+  [data-section="weekly"] .section-header { border-top: 3px solid var(--weekly); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Lidl Monthly Shop</h1>
+  <p>Tap item to check off · +/− to adjust qty</p>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">0 of 0 items done</div>
+</header>
+
+<div class="totals-strip">
+  <div class="total-chip"><span>🧊</span><span id="chip-freezer">£84.80</span></div>
+  <div class="total-chip"><span>🥫</span><span id="chip-cupboard">£56.60</span></div>
+  <div class="total-chip"><span>🧹</span><span id="chip-household">£27.50</span></div>
+  <div class="total-chip"><span>🛒</span><span id="chip-weekly">~£14.65/wk</span></div>
+  <div class="total-chip"><span>Total</span><span id="chip-grand">~£227.50/mo</span></div>
+</div>
+
+<div class="grand-total">
+  <div class="label">Monthly Total<small>Est. saving vs Asda: ~£50-60/mo</small></div>
+  <div class="amount" id="grandTotal">~£227.50</div>
+</div>
+
+<div id="lists"></div>
+
+<button class="reset-btn" onclick="resetAll()">↺ Reset all items &amp; quantities</button>
+
+<div class="note">
+  <strong>💡 Tips</strong><br>
+  Yellow sticker deals on meat → freeze immediately<br>
+  Month 2+: most household items won't need restocking<br>
+  Chest freezer running cost: ~£30-35/year
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    id: 'freezer', icon: '🧊', title: 'Freezer Bulk Buy', total: '£84.80',
+    items: [
+      { name: 'Breaded chicken steaks 750g', qty: 4, price: 4.00 },
+      { name: 'Diced pork casserole 700g', qty: 4, price: 3.50 },
+      { name: 'Smoked gammon joint 750g', qty: 2, price: 5.00 },
+      { name: 'Steak & gravy pie 700g', qty: 4, price: 3.00 },
+      { name: 'Grated cheddar 500g', qty: 4, price: 2.50 },
+      { name: 'Crumpets', qty: 4, price: 0.70 },
+      { name: 'Straight cut chips 1.6kg', qty: 4, price: 3.00 },
+      { name: 'Frozen mashed potato 900g', qty: 4, price: 2.00 },
+    ]
+  },
+  {
+    id: 'cupboard', icon: '🥫', title: 'Cupboard Stock', total: '£56.60',
+    items: [
+      { name: 'Green pesto 190g', qty: 4, price: 1.00 },
+      { name: 'Cheesy pasta bake 475g', qty: 4, price: 0.75 },
+      { name: 'Macaroni cheese 395g', qty: 4, price: 0.75 },
+      { name: 'Baked beans 4 pack', qty: 2, price: 1.50 },
+      { name: 'Tuna chunks in brine 4 pack', qty: 2, price: 2.00 },
+      { name: 'Apple juice 4x1L', qty: 2, price: 3.50 },
+      { name: 'Peanut & raisin mix 250g', qty: 2, price: 1.50 },
+      { name: 'Honey roasted peanuts 200g', qty: 2, price: 1.50 },
+      { name: 'Sugar cubes 500g', qty: 1, price: 1.20 },
+      { name: 'Coco Pops 650g', qty: 2, price: 2.50 },
+      { name: 'Honey nut corn flakes 500g', qty: 3, price: 1.10 },
+      { name: 'Spicy multipack crisps', qty: 4, price: 1.50 },
+      { name: 'Peperami firesticks', qty: 4, price: 1.50 },
+      { name: 'Mint chocolate bars', qty: 2, price: 1.00 },
+      { name: 'Pickled red onions 340g', qty: 1, price: 1.10 },
+      { name: 'Orange & mango squash 1.5L', qty: 2, price: 1.00 },
+    ]
+  },
+  {
+    id: 'household', icon: '🧹', title: 'Household', total: '£27.50',
+    items: [
+      { name: 'Dishwasher tablets 45 pack', qty: 1, price: 7.00 },
+      { name: 'Dishwasher cleaner', qty: 1, price: 1.50 },
+      { name: 'Rinse aid 500ml', qty: 1, price: 1.50 },
+      { name: 'Laundry pods 70 wash', qty: 1, price: 8.00 },
+      { name: 'Kitchen towel rolls', qty: 1, price: 2.50 },
+      { name: 'Air freshener', qty: 1, price: 1.50 },
+      { name: 'Anti-dandruff shampoo', qty: 1, price: 2.00 },
+      { name: 'Paracetamol 16 pack', qty: 2, price: 0.50 },
+      { name: 'Dog treats', qty: 2, price: 1.25 },
+    ]
+  },
+  {
+    id: 'weekly', icon: '🛒', title: 'Weekly Shop', total: '~£14.65/wk',
+    items: [
+      { name: 'Whole milk 6 pints', qty: 1, price: 2.40 },
+      { name: 'Whole milk 2 pints', qty: 1, price: 1.25 },
+      { name: 'Eggs x12 free range', qty: 1, price: 2.50 },
+      { name: 'Wafer thin cooked chicken 200g', qty: 1, price: 2.00 },
+      { name: 'Wholemeal wraps 8 pack', qty: 1, price: 1.00 },
+      { name: 'Apples', qty: 1, price: 1.50 },
+      { name: 'Pork pie 295g', qty: 1, price: 2.00 },
+      { name: 'Casserole vegetables 600g', qty: 2, price: 1.00 },
+    ]
+  }
+];
+
+let state = {};
+
+function loadState() {
+  try { state = JSON.parse(localStorage.getItem('lidl_shop_v2') || '{}'); }
+  catch(e) { state = {}; }
+}
+
+function saveState() {
+  try { localStorage.setItem('lidl_shop_v2', JSON.stringify(state)); } catch(e) {}
+}
+
+function getQty(sid, idx) {
+  const key = sid + '_qty_' + idx;
+  return state[key] !== undefined ? state[key] : SECTIONS.find(s => s.id === sid).items[idx].qty;
+}
+
+function isDone(sid, idx) { return !!state[sid + '_done_' + idx]; }
+
+function getSectionTotal(section) {
+  return section.items.reduce((sum, item, idx) => {
+    return sum + (item.price * getQty(section.id, idx));
+  }, 0).toFixed(2);
+}
+
+function render() {
+  const container = document.getElementById('lists');
+  container.innerHTML = '';
+
+  SECTIONS.forEach(section => {
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.dataset.section = section.id;
+
+    const sectionTotal = section.id === 'weekly'
+      ? `~£${getSectionTotal(section)}/wk`
+      : `£${getSectionTotal(section)}`;
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `<span class="icon">${section.icon}</span><span class="title">${section.title}</span><span class="section-total">${sectionTotal}</span><span class="chevron">▾</span>`;
+    header.onclick = () => {
+      header.classList.toggle('collapsed');
+      body.classList.toggle('hidden');
+    };
+
+    const body = document.createElement('div');
+    body.className = 'section-body';
+
+    section.items.forEach((item, idx) => {
+      const done = isDone(section.id, idx);
+      const qty = getQty(section.id, idx);
+      const totalPrice = (item.price * qty).toFixed(2);
+
+      const row = document.createElement('div');
+      row.className = 'item' + (done ? ' done' : '');
+
+      const cb = document.createElement('div');
+      cb.className = 'checkbox' + (done ? ' checked' : '');
+      cb.textContent = done ? '✓' : '';
+      cb.onclick = () => {
+        state[section.id + '_done_' + idx] = !isDone(section.id, idx);
+        saveState(); render();
+      };
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      info.innerHTML = `<div class="item-name">${item.name}</div><div class="item-sub">£${item.price.toFixed(2)} each</div>`;
+      info.onclick = () => {
+        state[section.id + '_done_' + idx] = !isDone(section.id, idx);
+        saveState(); render();
+      };
+
+      const right = document.createElement('div');
+      right.className = 'item-right';
+
+      const qtyCtrl = document.createElement('div');
+      qtyCtrl.className = 'qty-control';
+
+      const minus = document.createElement('button');
+      minus.className = 'qty-btn';
+      minus.textContent = '−';
+      minus.onclick = (e) => {
+        e.stopPropagation();
+        state[section.id + '_qty_' + idx] = Math.max(0, qty - 1);
+        saveState(); render();
+      };
+
+      const qtyVal = document.createElement('div');
+      qtyVal.className = 'qty-value';
+      qtyVal.textContent = qty;
+
+      const plus = document.createElement('button');
+      plus.className = 'qty-btn';
+      plus.textContent = '+';
+      plus.onclick = (e) => {
+        e.stopPropagation();
+        state[section.id + '_qty_' + idx] = qty + 1;
+        saveState(); render();
+      };
+
+      const price = document.createElement('div');
+      price.className = 'item-price';
+      price.textContent = '£' + totalPrice;
+
+      qtyCtrl.append(minus, qtyVal, plus);
+      right.append(qtyCtrl, price);
+      row.append(cb, info, right);
+      body.appendChild(row);
+    });
+
+    div.append(header, body);
+    container.appendChild(div);
+  });
+
+  updateProgress();
+}
+
+function resetAll() {
+  state = {};
+  saveState();
+  render();
+}
+
+function updateProgress() {
+  const all = document.querySelectorAll('.item');
+  const done = document.querySelectorAll('.item.done');
+  const pct = all.length ? (done.length / all.length) * 100 : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = done.length + ' of ' + all.length + ' items done';
+  const grand = SECTIONS.reduce((sum, section) => sum + parseFloat(getSectionTotal(section)), 0).toFixed(2);
+  document.getElementById('grandTotal').textContent = '£' + grand;
+  document.getElementById('chip-grand').textContent = '£' + grand + '/mo';
+  SECTIONS.forEach(section => {
+    const el = document.getElementById('chip-' + section.id);
+    if (el) el.textContent = section.id === 'weekly'
+      ? '~£' + getSectionTotal(section) + '/wk'
+      : '£' + getSectionTotal(section);
+  });
+}
+
+loadState();
+render();
+</script>
+</body>
+</html>
